@@ -11,20 +11,20 @@ class SessionType(Enum):
     P1 = "p1"  # Practice 1
     P2 = "p2"  # Practice 2
     P3 = "p3"  # Practice 3
-    Q = "q0"  # Qualifying
+    Q = "q0"   # Qualifying
     SQ = "sq"  # Sprint Shootout / Sprint Qualifying
-    S = "s0"  # Sprint Race
-    R = "r0"  # Race
+    S = "s0"   # Sprint Race
+    R = "r0"   # Race
 
 
 class DocType(Enum):
     """Типы официальных отчетов/документов FIA."""
-    CLASSIFICATION = "classification" # P,Q,R
-    MAXIMUM_SPEEDS = "maximumspeeds" # P,Q,R
-    BEST_SECTOR_TIMES = "bestsectortimes"
+    CLASSIFICATION = "classification"        # P, Q, R
+    MAXIMUM_SPEEDS = "maximumspeeds"        # P, Q, R
+    BEST_SECTOR_TIMES = "bestsectortimes"    # P, Q, R
+    RACE_CONTROL_MESSAGES = "racecontrolmessages"  # P, Q, R
+    SECTOR_ANALYSIS = "sectoranalysis" # P, Q, R
     LAP_TIMES = "laptimes"
-    RACE_CONTROL_MESSAGES = "racecontrolmessages"
-    SECTOR_ANALYSIS = "sectoranalysis"
     TRACK_ANALYSIS = "trackanalysis"
     WEATHER_REPORT = "weatherreport"
     CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship"
@@ -45,7 +45,7 @@ class PdfConvF1Base(PdfConvBase):
         "time", "laps", "gap", "int", "kmh", "time_of_day"
     ]
 
-    # Список колонок для квал (R)
+    # Список колонок для квалификаций (Q)
     QUALIFYING_CLASSIFICATION_COLUMNS = [
         "pos", "no", "driver", "", "", "entrant",
         "q1_time", "q1_laps", "q1_proc", "q1_dtime",
@@ -56,18 +56,32 @@ class PdfConvF1Base(PdfConvBase):
     # Список колонок для гонок (R)
     RACE_CLASSIFICATION_COLUMNS = [
         "pos", "no", "driver", "", "", "entrant",
-        "laps", "time",  "gap", "int", "kmh",
+        "laps", "time", "gap", "int", "kmh",
         "fastest", "on", "pts"
     ]
 
-    # Список колонок для квал (R)
+    # Список колонок для максимальной скорости
     MAXIMUM_SPEEDS_COLUMNS = [
         "pos", "no", "driver", "kmh",
     ]
 
-    # Список колонок для квал (R)
+    # Список колонок для лучших секторов
     BEST_SECTOR_TIMES_COLUMNS = [
         "pos", "no", "driver", "time",
+    ]
+
+    # Список колонок для сообщений дирекции гонки
+    RACE_CONTROL_MESSAGES_COLUMNS = [
+        "time", "message",
+    ]
+
+    # Список колонок для SECTOR_ANALYSIS
+    SECTOR_ANALYSIS_COLUMNS = [
+        "lap",
+        "s1_time", "s1_kmh",
+        "s2_time", "s2_kmh",
+        "s3_time", "s3_kmh",
+        "time",
     ]
 
     def __init__(
@@ -97,6 +111,10 @@ class PdfConvF1Base(PdfConvBase):
                 return self._convert_max_speeds(pdf_path)
             case DocType.BEST_SECTOR_TIMES:
                 return self._convert_best_sector_times(pdf_path)
+            case DocType.RACE_CONTROL_MESSAGES:
+                return self._convert_race_control_mess(pdf_path)
+            case DocType.SECTOR_ANALYSIS:
+                return self._convert_sector_analysis(pdf_path)
             case _:
                 raise NotImplementedError(
                     f"Конвертация для типа документа '{self.doc_type.value}' еще не реализована."
@@ -120,10 +138,7 @@ class PdfConvF1Base(PdfConvBase):
 
         match self.session_type:
             case SessionType.P1 | SessionType.P2 | SessionType.P3:
-                # Извлекаем сырые строки из 1-й таблицы PDF
                 raw_table = pdf.get_table(table_number=1) or []
-
-                # Заполняем TableWrapper через хелпер
                 self._append_rows(
                     table_wrapper=table_wrapper,
                     columns=self.PRACTICE_CLASSIFICATION_COLUMNS,
@@ -132,23 +147,16 @@ class PdfConvF1Base(PdfConvBase):
                 return [table_wrapper]
 
             case SessionType.Q:
-                # Извлекаем сырые строки из 1-й таблицы PDF
                 raw_table = pdf.get_table(table_number=1) or []
-
-                # Заполняем TableWrapper через хелпер
                 self._append_rows(
                     table_wrapper=table_wrapper,
                     columns=self.QUALIFYING_CLASSIFICATION_COLUMNS,
                     rows=raw_table
                 )
-
                 return [table_wrapper]
 
             case SessionType.R:
-                # Извлекаем сырые строки из 1-й таблицы PDF
                 raw_table = pdf.get_table(table_number=1) or []
-
-                # Заполняем TableWrapper через хелпер
                 self._append_rows(
                     table_wrapper=table_wrapper,
                     columns=self.RACE_CLASSIFICATION_COLUMNS,
@@ -156,17 +164,14 @@ class PdfConvF1Base(PdfConvBase):
                 )
 
                 if pdf.get_tables_count() > 1:
-
-                    raw_table = pdf.get_table(table_number=2)
-                    # Заполняем TableWrapper через хелпер
+                    raw_table_not_classified = pdf.get_table(table_number=2) or []
                     self._append_rows(
                         table_wrapper=table_wrapper,
                         columns=self.RACE_CLASSIFICATION_COLUMNS,
-                        rows=raw_table,
+                        rows=raw_table_not_classified,
                         skip_first_col=True,
                         ignore_keywords=["NOT CLASSIFIED"]
                     )
-
 
                 return [table_wrapper]
 
@@ -176,7 +181,7 @@ class PdfConvF1Base(PdfConvBase):
                 )
 
     def _convert_max_speeds(self, pdf_path: str) -> List[TableWrapper]:
-        """Обработка документов типа CLASSIFICATION."""
+        """Обработка документов типа MAXIMUM_SPEEDS."""
         pdf = PDFWrapper(crop_box=self.crop_box)
         pdf.open(pdf_path)
 
@@ -184,58 +189,19 @@ class PdfConvF1Base(PdfConvBase):
             return []
 
         res = []
+        table_titles = ["Speed Trap", "Finish Line", "Intermediate 1", "Intermediate 2"]
 
-        # получаем Speed Trap
-        raw_table = pdf.get_table(table_number=1)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Speed Trap")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.MAXIMUM_SPEEDS_COLUMNS,
-                rows=raw_table
-            )
-            res.append(table_wrapper)
-
-        # получаем Finish Line
-        raw_table = pdf.get_table(table_number=2)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Finish Line")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.MAXIMUM_SPEEDS_COLUMNS,
-                rows=raw_table,
-                num_first_col=True
-            )
-            res.append(table_wrapper)
-
-        # получаем Intermediate 1
-        raw_table = pdf.get_table(table_number=3)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Intermediate 1")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.MAXIMUM_SPEEDS_COLUMNS,
-                rows=raw_table,
-                num_first_col=True
-            )
-            res.append(table_wrapper)
-
-
-        # получаем Intermediate 2
-        raw_table = pdf.get_table(table_number=4)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Intermediate 2")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.MAXIMUM_SPEEDS_COLUMNS,
-                rows=raw_table,
-                num_first_col=True
-            )
-            res.append(table_wrapper)
+        for idx, title in enumerate(table_titles, start=1):
+            raw_table = pdf.get_table(table_number=idx)
+            if raw_table:
+                table_wrapper = TableWrapper(title=title)
+                self._append_rows(
+                    table_wrapper=table_wrapper,
+                    columns=self.MAXIMUM_SPEEDS_COLUMNS,
+                    rows=raw_table,
+                    num_first_col=(idx > 1)  # Нумерация нужна начиная со 2-й таблицы
+                )
+                res.append(table_wrapper)
 
         return res
 
@@ -248,47 +214,80 @@ class PdfConvF1Base(PdfConvBase):
             return []
 
         res = []
+        table_titles = ["Sector 1", "Sector 2", "Sector 3"]
 
-        # получаем Sector 1
-        raw_table = pdf.get_table(table_number=1)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Sector 1")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.BEST_SECTOR_TIMES_COLUMNS,
-                rows=raw_table
-            )
-            res.append(table_wrapper)
-
-        # получаем Sector 2
-        raw_table = pdf.get_table(table_number=2)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Sector 2")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.BEST_SECTOR_TIMES_COLUMNS,
-                rows=raw_table,
-                num_first_col=True
-            )
-            res.append(table_wrapper)
-
-        # получаем Sector 3
-        raw_table = pdf.get_table(table_number=3)
-        if raw_table:
-            table_wrapper = TableWrapper(title="Sector 3")
-
-            self._append_rows(
-                table_wrapper=table_wrapper,
-                columns=self.BEST_SECTOR_TIMES_COLUMNS,
-                rows=raw_table,
-                num_first_col=True
-            )
-            res.append(table_wrapper)
-
+        for idx, title in enumerate(table_titles, start=1):
+            raw_table = pdf.get_table(table_number=idx)
+            if raw_table:
+                table_wrapper = TableWrapper(title=title)
+                self._append_rows(
+                    table_wrapper=table_wrapper,
+                    columns=self.BEST_SECTOR_TIMES_COLUMNS,
+                    rows=raw_table,
+                    num_first_col=(idx > 1)  # Нумерация нужна начиная со 2-й таблицы
+                )
+                res.append(table_wrapper)
 
         return res
+
+    def _convert_race_control_mess(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа RACE_CONTROL_MESSAGES."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        table_wrapper = TableWrapper(title="Race Control Messages")
+        tables_count = pdf.get_tables_count()
+
+        for table_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(table_number=table_idx) or []
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.RACE_CONTROL_MESSAGES_COLUMNS,
+                rows=raw_table
+            )
+
+        return [table_wrapper]
+
+    def _convert_sector_analysis(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка отчетов Sector Analysis."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        tables_count = pdf.get_tables_count()
+        if tables_count == 0:
+            return []
+
+        result_tables = []
+
+        table_wrapper = None
+
+        for t_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(t_idx)
+            if not raw_table:
+                continue
+
+            # 1. Извлекаем текст непосредственно НАД данной таблицей
+            title = pdf.get_text_above_table(
+                table_number=t_idx, margin_height=15.0, margin_offset=30
+            )
+
+            if title:
+                table_wrapper = TableWrapper(title=title)
+                result_tables.append(table_wrapper)
+
+            if table_wrapper is None:
+                table_wrapper = TableWrapper(title="unknown")
+
+
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.SECTOR_ANALYSIS_COLUMNS,
+                rows=raw_table
+            )
+
+
+
+        return result_tables
 
     # =========================================================================
     # 3. ВСПОМОГАТЕЛЬНЫЕ ХЕЛПЕРЫ
@@ -305,10 +304,13 @@ class PdfConvF1Base(PdfConvBase):
     ) -> None:
         """
         Универсальный метод добавления массива строк в TableWrapper.
-        skip_first_col - в исходноке не хватает первой колонки, добавляем
-        ignore_keywords - игнорируем строки с указаннім текстом в первой колонке
-                         (подзаголовой таблицы)
-        num_first_col - добавить в первую колонку последовательность 1,2,3, ...
+
+        :param table_wrapper: Целевой TableWrapper.
+        :param columns: Список имен колонок таблицы.
+        :param rows: Двумерный массив сырых данных.
+        :param ignore_keywords: Игнорировать строки с указанным текстом в первой ячейке (подзаголовки).
+        :param skip_first_col: В исходных данных не хватает первой колонки, добавить пустую ячейку "".
+        :param num_first_col: Автоматически добавить порядок нумерации (1, 2, 3...) в первую колонку.
         """
         if not rows:
             return
@@ -328,10 +330,10 @@ class PdfConvF1Base(PdfConvBase):
 
             row_values = row
             if skip_first_col:
-                # добавляем пропущенное значение в пропущенную колонка
+                # Добавляем пустую ячейку в начало
                 row_values = [""] + row_values
             elif num_first_col:
-                # добавляем нумерацию в пропущенную колонка
+                # Добавляем нумерацию в начало
                 row_values = [str(l_num)] + row_values
                 l_num += 1
 
