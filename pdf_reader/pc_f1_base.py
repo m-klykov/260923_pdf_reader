@@ -24,8 +24,8 @@ class DocType(Enum):
     BEST_SECTOR_TIMES = "bestsectortimes"    # P, Q, R
     RACE_CONTROL_MESSAGES = "racecontrolmessages"  # P, Q, R
     SECTOR_ANALYSIS = "sectoranalysis" # P, Q, R
-    LAP_TIMES = "laptimes"
-    TRACK_ANALYSIS = "trackanalysis"
+    LAP_TIMES = "laptimes" # P, Q
+    TRACK_ANALYSIS = "trackanalysis" # P, Q
     WEATHER_REPORT = "weatherreport"
     CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship"
     DRIVERS_CHAMPIONSHIP = "driverschampionship"
@@ -84,6 +84,18 @@ class PdfConvF1Base(PdfConvBase):
         "time",
     ]
 
+    # Список колонок для LAP_TIMES
+    LAP_TIMES_COLUMNS = [
+        "no", "p", "time",
+    ]
+
+    # Список колонок для TRACK_ANALYSIS
+    TRACK_ANALYSIS_COLUMNS = [
+        "transponder", "pit exit",
+        "laps", "pit entry",
+    ]
+
+
     def __init__(
             self,
             session_type: SessionType,
@@ -115,6 +127,10 @@ class PdfConvF1Base(PdfConvBase):
                 return self._convert_race_control_mess(pdf_path)
             case DocType.SECTOR_ANALYSIS:
                 return self._convert_sector_analysis(pdf_path)
+            case DocType.LAP_TIMES:
+                return self._convert_lap_times(pdf_path)
+            case DocType.TRACK_ANALYSIS:
+                return self._convert_track_analysis(pdf_path)
             case _:
                 raise NotImplementedError(
                     f"Конвертация для типа документа '{self.doc_type.value}' еще не реализована."
@@ -277,6 +293,7 @@ class PdfConvF1Base(PdfConvBase):
 
             if table_wrapper is None:
                 table_wrapper = TableWrapper(title="unknown")
+                result_tables.append(table_wrapper)
 
 
             self._append_rows(
@@ -285,7 +302,80 @@ class PdfConvF1Base(PdfConvBase):
                 rows=raw_table
             )
 
+        return result_tables
 
+    def _convert_lap_times(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка отчетов Laptimes."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        tables_count = pdf.get_tables_count()
+        if tables_count == 0:
+            return []
+
+        result_tables = []
+
+        table_wrapper = None
+
+        for t_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(t_idx)
+            if not raw_table:
+                continue
+
+            first_table = t_idx % 2 == 1
+
+            if first_table:
+                # для нечетной таблицы получаем заголовок
+                # и создаем накопитель,
+                # Четная просто подклеиватся к нечетной
+                title = pdf.get_text_above_table(
+                    table_number=t_idx,
+                    margin_height=15.0, margin_offset=15.0,
+                    ext_width=100.0
+                )
+
+                table_wrapper = TableWrapper(title=title)
+                result_tables.append(table_wrapper)
+
+
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.LAP_TIMES_COLUMNS,
+                rows=raw_table
+            )
+
+        return result_tables
+
+    def _convert_track_analysis(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка отчетов On Track Analysis."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        tables_count = pdf.get_tables_count()
+        if tables_count == 0:
+            return []
+
+        result_tables = []
+
+        for t_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(t_idx)
+            if not raw_table:
+                continue
+
+            title = pdf.get_text_above_table(
+                table_number=t_idx,
+                margin_height=15.0, margin_offset=15.0,
+            )
+
+            table_wrapper = TableWrapper(title=title)
+
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.TRACK_ANALYSIS_COLUMNS,
+                rows=raw_table
+            )
+
+            result_tables.append(table_wrapper)
 
         return result_tables
 

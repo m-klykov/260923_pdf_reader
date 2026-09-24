@@ -81,15 +81,15 @@ class PDFWrapper:
         table_number: int,
         margin_height: float = 30.0,
         margin_offset: float = 5.0,
-
+        ext_width: float = 0.0,
     ) -> str:
         """
         Извлекает текст из геометрической области СТРОГО НАД таблицей.
 
         :param table_number: Номер таблицы (начиная с 1).
         :param margin_height: Высота области над таблицей в пунктах (по умолчанию 30 pt).
-        :param margin_offset: насколько приподнять область заголовка над таблицей
-                              чтобы пропустить названия колонок
+        :param ext_width: на сколько расширить облась по горионтали вправо от талицы
+        :param table_number: Номер таблицы (начиная с 1).
         :return: Строка с найденным текстом над таблицей.
         """
         if table_number < 1 or table_number > self.get_tables_count():
@@ -104,7 +104,7 @@ class PDFWrapper:
         # Формируем bbox области над таблицей
         crop_x0 = max(0.0, x0 - 5.0)  # небольшая погрешность влево
         crop_top = max(0.0, top - margin_height - margin_offset)
-        crop_x1 = min(float(page.width), x1 + 5.0)
+        crop_x1 = min(float(page.width), x1 + 5.0 + ext_width)
         crop_bottom = top - margin_offset
         if crop_bottom <= crop_top:
             return ""

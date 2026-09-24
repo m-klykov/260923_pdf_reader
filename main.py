@@ -47,9 +47,18 @@ if __name__ == "__main__":
     # res = converter.convert("data/2026_14_esp_f1_q0_timing_sectoranalysis_v01.pdf")
     # view_result("q Sector Analysis", res)
 
-    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.SECTOR_ANALYSIS)
-    res = converter.convert("data/2026_14_esp_f1_r0_timing_sectoranalysis_v01.pdf")
-    view_result("r Sector Analysis", res)
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.SECTOR_ANALYSIS)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_sectoranalysis_v01.pdf")
+    # view_result("r Sector Analysis", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.LAP_TIMES)
+    # res = converter.convert("data/2026_14_esp_f1_p1_timing_laptimes_v01.pdf")
+    # # res = converter.convert("data/2026_14_esp_f1_q0_timing_laptimes_v01.pdf")
+    # view_result("q Lap Times", res)
+
+    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.TRACK_ANALYSIS)
+    res = converter.convert("data/2026_14_esp_f1_q0_timing_trackanalysis_v01.pdf")
+    view_result("q On Track Analysis", res)
 
 
 

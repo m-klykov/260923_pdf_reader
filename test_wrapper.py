@@ -5,7 +5,7 @@ if __name__ == "__main__":
     area = ( (0, 100/740), (1 , 668/740 ))
     pdf = PDFWrapper( area )
 
-    file_name = "data/2026_14_esp_f1_q0_timing_sectoranalysis_v01.pdf"
+    file_name = "data/2026_14_esp_f1_q0_timing_laptimes_v01.pdf"
 
     # 2. Считываем данные из файла
     pdf.open(file_name)
@@ -22,11 +22,12 @@ if __name__ == "__main__":
     # 4. Работаем с таблицами
     print(f"\nВсего таблиц во всем документе: {pdf.get_tables_count()}")
     if pdf.get_tables_count() > 0:
+
         # Берём 1-ю таблицу
-        first_table = pdf.get_table(table_number=1)
+        first_table = pdf.get_table(table_number=6)
         print(f"Первая строка 1-й таблицы: {first_table[0]}")
         tab_tit = pdf.get_text_above_table(
-            table_number=1, margin_height=15.0, margin_offset=30)
+            table_number=6, margin_height=15.0, margin_offset=15)
         print(f"Заголовок 1-й таблицы: {tab_tit}")
 
         for line in first_table:
