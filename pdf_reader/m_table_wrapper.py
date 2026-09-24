@@ -1,7 +1,8 @@
 import re
 
 class TableWrapper:
-    def __init__(self):
+    def __init__(self,title : str=""):
+        self.title = title
         # Храним порядок уникальных имен колонок
         self._columns_order = {}
         # Список строк: каждый элемент — словарь {"ИМЯ_КОЛОНКИ": "ЗНАЧЕНИЕ"}

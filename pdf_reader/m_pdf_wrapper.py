@@ -78,16 +78,14 @@ class PDFWrapper:
         """Возвращает общее количество таблиц в документе."""
         return len(self._tables)
 
-    def get_table(self, table_number: int = 1) -> List[List[Optional[str]]]:
+    def get_table(self, table_number: int = 1) -> Optional[List[List[Optional[str]]]]:
         """
         Возвращает таблицу по ее номеру (сквозная нумерация).
 
         :param table_number: Номер таблицы (начиная с 1).
         """
         if table_number < 1 or table_number > self.get_tables_count():
-            raise IndexError(
-                f"Запрошена таблица {table_number}, но в документе всего таблиц: {self.get_tables_count()}"
-            )
+            return None
 
         return self._tables[table_number - 1]
 
