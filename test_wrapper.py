@@ -5,7 +5,7 @@ if __name__ == "__main__":
     area = ( (0, 100/740), (1 , 668/740 ))
     pdf = PDFWrapper( area )
 
-    file_name = "data/2026_14_esp_f1_r0_timing_lapchart_v01.pdf"
+    file_name = "data/2026_14_esp_f1_r0_timing_driverschampionship_v01.pdf"
 
     # 2. Считываем данные из файла
     pdf.open(file_name)

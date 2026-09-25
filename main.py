@@ -72,9 +72,21 @@ if __name__ == "__main__":
     # res = converter.convert("data/2026_14_esp_f1_r0_timing_historychart_v01.pdf")
     # view_result("Race History Chart", res)
 
-    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.PIT_STOP_SUMMARY)
-    res = converter.convert("data/2026_14_esp_f1_r0_timing_pitstopsummary_v01.pdf")
-    view_result("Race Pit Stop Summary", res)
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.PIT_STOP_SUMMARY)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_pitstopsummary_v01.pdf")
+    # view_result("Race Pit Stop Summary", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.LAP_CHART)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_lapchart_v01.pdf")
+    # view_result("Race Lap Chart", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.DRIVERS_CHAMPIONSHIP)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_driverschampionship_v01.pdf")
+    # view_result("Drivers Championship", res)
+
+    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.CONSTRUCTORS_CHAMPIONSHIP)
+    res = converter.convert("data/2026_14_esp_f1_r0_timing_constructorschampionship_v01.pdf")
+    view_result("Constructors Championship", res)
 
 
 

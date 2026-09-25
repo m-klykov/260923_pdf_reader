@@ -30,9 +30,9 @@ class DocType(Enum):
     FASTEST_LAPS = "fastestlaps" # R
     HISTORY_CHART = "historychart" # R
     PIT_STOP_SUMMARY = "pitstopsummary" # R
-    LAP_CHART = "lapchart"
-    DRIVERS_CHAMPIONSHIP = "driverschampionship"
-    CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship"
+    LAP_CHART = "lapchart" # R
+    DRIVERS_CHAMPIONSHIP = "driverschampionship" # R
+    CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship" # R
 
 
 class PdfConvF1Base(PdfConvBase):
@@ -161,6 +161,12 @@ class PdfConvF1Base(PdfConvBase):
                 return self._convert_history_chart(pdf_path)
             case DocType.PIT_STOP_SUMMARY:
                 return self._convert_race_pit_stop_summary(pdf_path)
+            case DocType.LAP_CHART:
+                return self._convert_lap_chart(pdf_path)
+            case DocType.DRIVERS_CHAMPIONSHIP:
+                return self._convert_drivers_championship(pdf_path)
+            case DocType.CONSTRUCTORS_CHAMPIONSHIP:
+                return self._convert_constructors_championship(pdf_path)
             case _:
                 raise NotImplementedError(
                     f"Конвертация для типа документа '{self.doc_type.value}' еще не реализована."
@@ -514,6 +520,177 @@ class PdfConvF1Base(PdfConvBase):
                 table_wrapper=table_wrapper,
                 columns=self.PIT_STOP_SUMMARY_COLUMNS,
                 rows=raw_table
+            )
+
+        return [table_wrapper]
+
+    def _convert_lap_chart(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа LAP_CHART """
+        # обрезаем лишнее, нам нужен только текст
+        area = ((0, 100 / 740), (1, 670 / 740))
+        pdf = PDFWrapper(area)
+
+        pdf.open(pdf_path)
+
+        table_wrapper = TableWrapper(title="Lap Chart")
+        page_count = pdf.get_page_count()
+
+        rows = []
+        columns = []
+
+        for page_idx in range(1, page_count + 1):
+            lines = pdf.get_lines(page_number=page_idx)
+
+            if len(lines) < 4:
+                continue
+
+            if page_idx == 1:
+                line = lines[2]
+                columns = line.split()
+
+            for ind in range(3, len(lines)):
+                line = lines[ind]
+                values = line.split()
+
+                if values[0] == "LAP":
+                    values[0] = values[0] + " " + values[1]  # -> "LAP 5"
+                    del values[1]
+
+                rows.append(values)
+
+        if rows:
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=columns,
+                rows=rows
+            )
+
+        return [table_wrapper]
+
+    def _convert_drivers_championship(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа DRIVERS_CHAMPIONSHIP """
+        # обрезаем лишнее, нам нужен только текст
+        area = ((0, 100 / 740), (1, 670 / 740))
+        pdf = PDFWrapper(area)
+
+        pdf.open(pdf_path)
+
+        table_wrapper = TableWrapper(title="Drivers Championship")
+        page_count = pdf.get_page_count()
+
+        rows = []
+        columns = []
+
+        for page_idx in range(1, page_count + 1):
+            lines = pdf.get_lines(page_number=page_idx)
+            raw_table = pdf.get_table(table_number=page_idx) or []
+
+            if len(lines) < 4:
+                continue
+
+            if page_idx == 1:
+                line = lines[2] # DRIVER TOTAL AUS CHN JPN ...
+                # print(f"line: {line}")
+
+                counts = {}
+                columns_sor = []
+
+                # нумеруем дубликаты
+                for item in line.split()[2:]: # абревиатуры строн:
+                    if item in counts:
+                        counts[item] += 1
+                        columns_sor.append(f"{item}{counts[item]}")
+                    else:
+                        counts[item] = 0
+                        columns_sor.append(item)
+
+                columns = ["pos", "driver", "total"]
+                for v in columns_sor:
+                    columns.append(v) # колонка очков
+                    columns.append(v+"_place") # позиция
+
+            for row in raw_table:
+                values = row[:3] # no, driver, total
+                for col in row[3:]:
+                    # я ячейrе "очки \n позиция" или "позиция"
+                    col_parts = str(col).split()
+                    if len(col_parts)<2:
+                        values.append("") # очков нету, добавляем пустое значение
+                    values += col_parts
+
+                rows.append(values)
+
+        if rows:
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=columns,
+                rows=rows
+            )
+
+        return [table_wrapper]
+
+    def _convert_constructors_championship(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа Constructors Championship """
+        # обрезаем лишнее, нам нужен только текст
+        area = ((0, 100 / 740), (1, 670 / 740))
+        pdf = PDFWrapper(area)
+
+        pdf.open(pdf_path)
+
+        table_wrapper = TableWrapper(title="Drivers Championship")
+        page_count = pdf.get_page_count()
+
+        rows = []
+        columns = []
+
+        for page_idx in range(1, page_count + 1):
+            lines = pdf.get_lines(page_number=page_idx)
+            raw_table = pdf.get_table(table_number=page_idx) or []
+
+            if len(lines) < 4:
+                continue
+
+            if page_idx == 1:
+                line = lines[2] # DRIVER TOTAL AUS CHN JPN ...
+                # print(f"line: {line}")
+
+                counts = {}
+                columns_sor = []
+
+                # нумеруем дубликаты
+                for item in line.split()[2:]: # абревиатуры строн:
+                    if item in counts:
+                        counts[item] += 1
+                        columns_sor.append(f"{item}{counts[item]}")
+                    else:
+                        counts[item] = 0
+                        columns_sor.append(item)
+
+                columns = ["pos", "entrant", "total"]
+                for v in columns_sor:
+                    columns.append(v) # колонка очков
+                    columns.append(v+"_pl1") # позиция 1
+                    columns.append(v+"_pl2") # позиция 2
+
+            for row in raw_table:
+                if row[1] == "NOTES":
+                    break
+
+                values = row[:3] # no, entrant, total
+                for col in row[3:]:
+                    # я ячейrе "очки \n позиция" или "позиция"
+                    col_parts = str(col).split()
+                    if len(col_parts)<3:
+                        values.append("") # очков нету, добавляем пустое значение
+                    values += col_parts
+
+                rows.append(values)
+
+        if rows:
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=columns,
+                rows=rows
             )
 
         return [table_wrapper]
