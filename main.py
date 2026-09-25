@@ -10,7 +10,7 @@ def view_result(title, res):
     print()
     for table in res:
         print(f"--- {table.title} ---")
-        for row in table._rows: # get_table():
+        for row in table.get_rows(): # get_table():
             print(row)
 
 if __name__ == "__main__":
@@ -56,9 +56,25 @@ if __name__ == "__main__":
     # # res = converter.convert("data/2026_14_esp_f1_q0_timing_laptimes_v01.pdf")
     # view_result("q Lap Times", res)
 
-    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.TRACK_ANALYSIS)
-    res = converter.convert("data/2026_14_esp_f1_q0_timing_trackanalysis_v01.pdf")
-    view_result("q On Track Analysis", res)
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.TRACK_ANALYSIS)
+    # res = converter.convert("data/2026_14_esp_f1_q0_timing_trackanalysis_v01.pdf")
+    # view_result("q On Track Analysis", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.LAP_ANALYSIS)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_lapanalysis_v01.pdf")
+    # view_result("Race Lap Analysis", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.FASTEST_LAPS)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_fastestlaps_v01.pdf")
+    # view_result("Race Fastest Laps", res)
+
+    # converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.HISTORY_CHART)
+    # res = converter.convert("data/2026_14_esp_f1_r0_timing_historychart_v01.pdf")
+    # view_result("Race History Chart", res)
+
+    converter = PdfConvF1Base(session_type=SessionType.R, doc_type=DocType.PIT_STOP_SUMMARY)
+    res = converter.convert("data/2026_14_esp_f1_r0_timing_pitstopsummary_v01.pdf")
+    view_result("Race Pit Stop Summary", res)
 
 
 

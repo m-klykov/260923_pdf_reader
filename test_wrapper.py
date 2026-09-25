@@ -5,7 +5,7 @@ if __name__ == "__main__":
     area = ( (0, 100/740), (1 , 668/740 ))
     pdf = PDFWrapper( area )
 
-    file_name = "data/2026_14_esp_f1_q0_timing_laptimes_v01.pdf"
+    file_name = "data/2026_14_esp_f1_r0_timing_lapchart_v01.pdf"
 
     # 2. Считываем данные из файла
     pdf.open(file_name)
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         lines_page_1 = pdf.get_lines(page_number=1)
         print(f"Первые строки 1-й страницы:")
 
-        for n, v in enumerate(lines_page_1[:2]):
+        for n, v in enumerate(lines_page_1):
             print(f"{n}. {v}")
 
     # 4. Работаем с таблицами
@@ -24,10 +24,10 @@ if __name__ == "__main__":
     if pdf.get_tables_count() > 0:
 
         # Берём 1-ю таблицу
-        first_table = pdf.get_table(table_number=6)
+        first_table = pdf.get_table(table_number=1)
         print(f"Первая строка 1-й таблицы: {first_table[0]}")
         tab_tit = pdf.get_text_above_table(
-            table_number=6, margin_height=15.0, margin_offset=15)
+            table_number=1, margin_height=15.0, margin_offset=15)
         print(f"Заголовок 1-й таблицы: {tab_tit}")
 
         for line in first_table:

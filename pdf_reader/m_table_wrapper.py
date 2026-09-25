@@ -1,4 +1,6 @@
 import re
+from typing import List, Dict, Any
+
 
 class TableWrapper:
     def __init__(self,title : str=""):
@@ -58,6 +60,9 @@ class TableWrapper:
         # Записываем строку, если в ней есть хотя бы одна валидная колонка
         if row_dict:
             self._rows.append(row_dict)
+
+    def get_rows(self) -> List[Dict[str, Any]]:
+        return self._rows
 
     def get_table(self) -> list[list[str]]:
         """

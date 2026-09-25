@@ -26,14 +26,13 @@ class DocType(Enum):
     SECTOR_ANALYSIS = "sectoranalysis" # P, Q, R
     LAP_TIMES = "laptimes" # P, Q
     TRACK_ANALYSIS = "trackanalysis" # P, Q
-    WEATHER_REPORT = "weatherreport"
-    CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship"
-    DRIVERS_CHAMPIONSHIP = "driverschampionship"
-    FASTEST_LAPS = "fastestlaps"
-    HISTORY_CHART = "historychart"
-    LAP_ANALYSIS = "lapanalysis"
+    LAP_ANALYSIS = "lapanalysis" # R
+    FASTEST_LAPS = "fastestlaps" # R
+    HISTORY_CHART = "historychart" # R
+    PIT_STOP_SUMMARY = "pitstopsummary" # R
     LAP_CHART = "lapchart"
-    PIT_STOP_SUMMARY = "pitstopsummary"
+    DRIVERS_CHAMPIONSHIP = "driverschampionship"
+    CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship"
 
 
 class PdfConvF1Base(PdfConvBase):
@@ -95,6 +94,29 @@ class PdfConvF1Base(PdfConvBase):
         "laps", "pit entry",
     ]
 
+    # Список колонок для LAP_ANALYSIS
+    LAP_ANALYSIS_COLUMNS = [
+        "lap", "p", "time",
+    ]
+
+    # Список колонок для FASTEST_LAPS
+    FASTEST_LAPS_COLUMNS = [
+        "pos", "no", "driver", "", "", "", "entrant",
+        "time", "on", "gap", "int", "kmh", "time_of_day"
+    ]
+
+    # Список колонок для HISTORY_CHART
+    HISTORY_CHART_COLUMNS = [
+        "no", "gap", "time",
+    ]
+
+    # Список колонок для PIT_STOP_SUMMARY
+    PIT_STOP_SUMMARY_COLUMNS = [
+        "no", "driver", "entrant",
+        "lap", "time_of_day", "stop",
+        "duration", "total", "time"
+    ]
+
 
     def __init__(
             self,
@@ -131,6 +153,14 @@ class PdfConvF1Base(PdfConvBase):
                 return self._convert_lap_times(pdf_path)
             case DocType.TRACK_ANALYSIS:
                 return self._convert_track_analysis(pdf_path)
+            case DocType.LAP_ANALYSIS:
+                return self._convert_lap_analysis(pdf_path)
+            case DocType.FASTEST_LAPS:
+                return self._convert_fastest_laps(pdf_path)
+            case DocType.HISTORY_CHART:
+                return self._convert_history_chart(pdf_path)
+            case DocType.PIT_STOP_SUMMARY:
+                return self._convert_race_pit_stop_summary(pdf_path)
             case _:
                 raise NotImplementedError(
                     f"Конвертация для типа документа '{self.doc_type.value}' еще не реализована."
@@ -378,6 +408,115 @@ class PdfConvF1Base(PdfConvBase):
             result_tables.append(table_wrapper)
 
         return result_tables
+
+    def _convert_lap_analysis(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка отчетов Race Lap Analysis."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        tables_count = pdf.get_tables_count()
+        if tables_count == 0:
+            return []
+
+        result_tables = []
+
+        table_wrapper = None
+
+        for t_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(t_idx)
+            if not raw_table:
+                continue
+
+            first_table = t_idx % 2 == 1
+
+            if first_table:
+                # для нечетной таблицы получаем заголовок
+                # и создаем накопитель,
+                # Четная просто подклеиватся к нечетной
+                title = pdf.get_text_above_table(
+                    table_number=t_idx,
+                    margin_height=15.0, margin_offset=15.0,
+                    ext_width=100.0
+                )
+
+                table_wrapper = TableWrapper(title=title)
+                result_tables.append(table_wrapper)
+
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.LAP_ANALYSIS_COLUMNS,
+                rows=raw_table
+            )
+
+        return result_tables
+
+    def _convert_fastest_laps(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа CLASSIFICATION."""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        if pdf.get_tables_count() == 0:
+            return []
+
+        # Создаем главный враппер таблицы
+        main_title = "Fastest Laps"
+        table_wrapper = TableWrapper(title=main_title)
+
+        raw_table = pdf.get_table(table_number=1) or []
+        self._append_rows(
+            table_wrapper=table_wrapper,
+            columns=self.FASTEST_LAPS_COLUMNS,
+            rows=raw_table
+        )
+        return [table_wrapper]
+
+    def _convert_history_chart(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка отчетов Race History Chart"""
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        tables_count = pdf.get_tables_count()
+        if tables_count == 0:
+            return []
+
+        result_tables = []
+
+        for t_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(t_idx)
+            if not raw_table:
+                continue
+
+            title = f"Lap {t_idx}"
+
+            table_wrapper = TableWrapper(title=title)
+            result_tables.append(table_wrapper)
+
+
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.HISTORY_CHART_COLUMNS,
+                rows=raw_table
+            )
+
+        return result_tables
+
+    def _convert_race_pit_stop_summary(self, pdf_path: str) -> List[TableWrapper]:
+        """Обработка документов типа PIT_STOP_SUMMARY """
+        pdf = PDFWrapper(crop_box=self.crop_box)
+        pdf.open(pdf_path)
+
+        table_wrapper = TableWrapper(title="Pit Stop Summary")
+        tables_count = pdf.get_tables_count()
+
+        for table_idx in range(1, tables_count + 1):
+            raw_table = pdf.get_table(table_number=table_idx) or []
+            self._append_rows(
+                table_wrapper=table_wrapper,
+                columns=self.PIT_STOP_SUMMARY_COLUMNS,
+                rows=raw_table
+            )
+
+        return [table_wrapper]
 
     # =========================================================================
     # 3. ВСПОМОГАТЕЛЬНЫЕ ХЕЛПЕРЫ
