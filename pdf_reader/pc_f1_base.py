@@ -122,12 +122,11 @@ class PdfConvF1Base(PdfConvBase):
             self,
             session_type: SessionType,
             doc_type: DocType,
-            crop_box: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None,
     ):
         super().__init__()
         self.session_type = session_type
         self.doc_type = doc_type
-        self.crop_box = crop_box
+        self.crop_box = None
 
     # =========================================================================
     # 1. ДИСПЕТЧЕР (Точка входа)
