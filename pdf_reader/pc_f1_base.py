@@ -1,5 +1,7 @@
+import os
 from enum import Enum
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, NamedTuple
+import re
 
 from .m_pdf_wrapper import PDFWrapper
 from .m_table_wrapper import TableWrapper
@@ -33,6 +35,11 @@ class DocType(Enum):
     LAP_CHART = "lapchart" # R
     DRIVERS_CHAMPIONSHIP = "driverschampionship" # R
     CONSTRUCTORS_CHAMPIONSHIP = "constructorschampionship" # R
+
+class FileMeta(NamedTuple):
+    grand_prix_id: str
+    session_type: SessionType
+    doc_type: DocType
 
 
 class PdfConvF1Base(PdfConvBase):
@@ -743,3 +750,81 @@ class PdfConvF1Base(PdfConvBase):
                 l_num += 1
 
             table_wrapper.add_line(columns, row_values)
+
+    @staticmethod
+    def parse_file_meta(file_path_or_url: str) -> Optional[FileMeta]:
+        """
+        Разбирает имя файла или URL отчета FIA и извлекает:
+        - ID Гран-при (например, "2026_15_aze_f1")
+        - Тип сессии (SessionType)
+        - Тип документа (DocType)
+
+        :param file_path_or_url: Имя файла, локальный путь или полный URL.
+        :return: FileMeta(grand_prix_id, session_type, doc_type) или None, если формат не подходит.
+        """
+        filename = os.path.basename(file_path_or_url)
+
+        # Регулярка для разбора имени файла FIA Timing
+        # Пример: 2026_15_aze_f1_p1_timing_firstpracticesessionclassification_v01.pdf
+        pattern = re.compile(
+            r"^(?P<gp_id>\d{4}_\d+_[a-z0-9]+_f1)_"  # 2026_15_aze_f1
+            r"(?P<session>p1|p2|p3|q0|sq|s0|r0)_timing_"  # p1, q0, r0 и т.д.
+            r"(?P<doc_key>[a-z0-9_]+?)"  # ключ документа до версии
+            r"(?:_v\d+)?(?:_\d+)?\.pdf$",  # _v01.pdf или _v01_0.pdf
+            re.IGNORECASE
+        )
+
+        match = pattern.match(filename)
+        if not match:
+            return None
+
+        gp_id = match.group("gp_id").lower()
+        session_str = match.group("session").lower()
+        raw_doc_key = match.group("doc_key").lower().replace("_", "")
+
+        # 1. Определение SessionType
+        session_type = None
+        for s in SessionType:
+            if s.value == session_str:
+                session_type = s
+                break
+
+        if not session_type:
+            return None
+
+        # 2. Маппинг суффиксов FIA на значение DocType.value
+        # Порядок в словаре важен (более длинные совпадения идут раньше)
+        doc_key_mapping = {
+            "provisionalclassification": DocType.CLASSIFICATION,
+            "classification": DocType.CLASSIFICATION,
+            "maximumspeeds": DocType.MAXIMUM_SPEEDS,
+            "bestsectortimes": DocType.BEST_SECTOR_TIMES,
+            "racecontrolmessages": DocType.RACE_CONTROL_MESSAGES,
+            "sectoranalysis": DocType.SECTOR_ANALYSIS,
+            "laptimes": DocType.LAP_TIMES,
+            "ontrackanalysis": DocType.TRACK_ANALYSIS,
+            "lapanalysis": DocType.LAP_ANALYSIS,
+            "fastestlaps": DocType.FASTEST_LAPS,
+            "historychart": DocType.HISTORY_CHART,
+            "pitstopsummary": DocType.PIT_STOP_SUMMARY,
+            "lapchart": DocType.LAP_CHART,
+            "driverschampionship": DocType.DRIVERS_CHAMPIONSHIP,
+            "constructorschampionship": DocType.CONSTRUCTORS_CHAMPIONSHIP,
+            "weatherreport": None,  # если нужно пропустить нерелевантные отчёты
+        }
+
+        # Выделяем совпадение с ключом документа
+        matched_doc_type = None
+        for key, target_doc_type in doc_key_mapping.items():
+            if raw_doc_key.endswith(key):
+                matched_doc_type = target_doc_type
+                break
+
+        if not matched_doc_type:
+            return None
+
+        return FileMeta(
+            grand_prix_id=gp_id,
+            session_type=session_type,
+            doc_type=matched_doc_type
+        )

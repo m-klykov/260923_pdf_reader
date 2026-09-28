@@ -53,10 +53,15 @@ class PDFWrapper:
             for t in found_tables:
                 extracted_data = t.extract()
                 if extracted_data:
+                    # Извлекаем границы (x0, x1) для каждой колонки
+                    # print(t.cells)
+                    columns_bbox = [(col.bbox[0], col.bbox[2]) for col in t.columns]
+
                     self._tables.append(extracted_data)
                     self._table_meta.append({
                         "page_idx": page_idx,
                         "bbox": t.bbox,  # (x0, top, x1, bottom)
+                        "columns_bbox": columns_bbox,  # [(col0_x0, col0_x1), (col1_x0, col1_x1), ...]
                     })
 
     def get_page_count(self) -> int:
@@ -115,6 +120,59 @@ class PDFWrapper:
 
         text = cropped_region.extract_text(layout=False) or ""
         return text.strip()
+
+    def get_column_headers_above_table(
+            self,
+            table_number: int,
+            margin_height: float = 15.0,
+            margin_offset: float = 1.0,
+            ext_width: float = 0.0,
+    ) -> List[str]:
+        """
+        Извлекает названия всех колонок таблицы из области СТРОГО НАД каждой колонкой.
+
+        :param table_number: Номер таблицы (начиная с 1).
+        :param margin_height: Высота зоны с заголовками над таблицей в пунктах (pt).
+        :param margin_offset: Отступ зоны от верхнего края таблицы вверх (pt).
+        :param ext_width: Горизонтальное расширение зоны влево и вправо для каждой колонки (pt).
+        :return: Список распознанных заголовков для каждой колонки по порядку.
+        """
+        if table_number < 1 or table_number > len(self._table_meta):
+            return []
+
+        meta = self._table_meta[table_number - 1]
+        columns_bbox = meta.get("columns_bbox", [])
+        if not columns_bbox:
+            return []
+
+        page_idx = meta["page_idx"]
+        table_top = meta["bbox"][1]
+        page = self._pages_cache[page_idx]
+
+        headers = []
+
+        for col_x0, col_x1 in columns_bbox:
+            # Вычисляем рамки для текущей колонки
+            crop_x0 = max(0.0, col_x0 - ext_width)
+            crop_x1 = min(float(page.width), col_x1 + ext_width)
+            crop_top = max(0.0, table_top - margin_height - margin_offset)
+            crop_bottom = table_top - margin_offset
+
+            if crop_bottom <= crop_top:
+                headers.append("")
+                continue
+
+            # Вырезаем ячейку заголовка над колонкой
+            above_crop = (crop_x0, crop_top, crop_x1, crop_bottom)
+            cropped_region = page.crop(above_crop)
+
+            # Извлекаем текст
+            text = cropped_region.extract_text(layout=False) or ""
+            # Заменяем переносы строк внутри одного заголовка на пробел
+            clean_header = " ".join(text.split())
+            headers.append(clean_header)
+
+        return headers
 
     def _apply_crop_if_needed(self, page: pdfplumber.page.Page) -> pdfplumber.page.Page:
         if not self.crop_box:

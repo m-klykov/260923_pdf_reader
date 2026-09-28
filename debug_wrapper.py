@@ -5,7 +5,7 @@ if __name__ == "__main__":
     area = ( (0, 100/740), (1 , 668/740 ))
     pdf = PDFWrapper( area )
 
-    file_name = "data/2026_14_esp_f1_r0_timing_driverschampionship_v01.pdf"
+    file_name = "data/2026_14_esp_f1_p1_timing_classification_v01.pdf"
 
     # 2. Считываем данные из файла
     pdf.open(file_name)
@@ -16,7 +16,7 @@ if __name__ == "__main__":
         lines_page_1 = pdf.get_lines(page_number=1)
         print(f"Первые строки 1-й страницы:")
 
-        for n, v in enumerate(lines_page_1):
+        for n, v in enumerate(lines_page_1[:3]):
             print(f"{n}. {v}")
 
     # 4. Работаем с таблицами
@@ -25,6 +25,8 @@ if __name__ == "__main__":
 
         # Берём 1-ю таблицу
         first_table = pdf.get_table(table_number=1)
+        cols = pdf.get_column_headers_above_table(table_number=1)
+        print(f"Колонки 1-й таблицы: {cols}")
         print(f"Первая строка 1-й таблицы: {first_table[0]}")
         tab_tit = pdf.get_text_above_table(
             table_number=1, margin_height=15.0, margin_offset=15)
